@@ -1,0 +1,9 @@
+class AddToCartDTO {
+  constructor({ userId, productId, quantity }) {
+    this.userId = userId;
+    this.productId = productId;
+    this.quantity = quantity;
+  }
+}
+
+module.exports = AddToCartDTO;
