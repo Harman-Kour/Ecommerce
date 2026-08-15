@@ -1,6 +1,6 @@
-# QuickBasket
+#Snap Delivery
 
-QuickBasket is a full-stack grocery storefront using a clean-architecture Node.js backend and a lightweight static frontend served from the `public/` directory.
+Snap Delivery is a full-stack grocery storefront using a clean-architecture Node.js backend and a lightweight static frontend served from the `public/` directory.
 
 The app includes:
 - a REST API for users, products, cart, and orders
