@@ -1,2 +1,77 @@
+# Environment Variables
 .env
+.env.local
+.env.*.local
+
+# Node Dependencies
 node_modules/
+package-lock.json
+npm-debug.log
+npm-debug.log.*
+yarn-error.log
+yarn-debug.log
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+ecommerce.db
+ecommerce.db.backup
+*.db-journal
+
+# Logs
+logs/
+*.log
+lerna-debug.log
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor Files
+.vscode/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.idea/*
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+*.code-workspace
+
+# Build and Distribution
+dist/
+build/
+out/
+.next/
+.nuxt/
+coverage/
+
+# Temporary Files
+.cache/
+.tmp/
+tmp/
+temp/
+
+# PM2
+ecosystem.config.js.local
+.pm2/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Test Coverage
+.nyc_output/
+
+# Local development
+.env.development.local
+.env.test.local
+.env.production.local
