@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const container = require('./config/container');
 const { errorHandler } = require('./infrastructure/web/middleware/errorHandler');
 const { runMigrations } = require('./infrastructure/database/migrations');
@@ -12,6 +13,7 @@ const cartRoutes = require('./infrastructure/web/routes/cartRoutes');
 
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Health check
 app.get('/health', (req, res) => {
