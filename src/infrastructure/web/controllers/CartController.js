@@ -3,7 +3,7 @@ const AddToCartDTO = require('../../../application/dto/AddToCartDTO');
 class CartController {
   constructor(addToCart, getCart, clearCart) {
     this.addToCart = addToCart;
-    this.getCart = getCart;
+    this.getCartUseCase = getCart;
     this.clearCart = clearCart;
   }
 
@@ -19,7 +19,7 @@ class CartController {
 
   getCart = async (req, res, next) => {
     try {
-      const cart = await this.getCart.execute(Number(req.params.userId));
+      const cart = await this.getCartUseCase.execute(Number(req.params.userId));
       res.json({ success: true, data: cart });
     } catch (error) {
       next(error);

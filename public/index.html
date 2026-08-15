@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuickBasket</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="store-header">
+      <a class="brand" href="/" aria-label="QuickBasket home">
+        <span>quick</span><strong>basket</strong>
+      </a>
+
+      <div class="delivery-block">
+        <strong>Delivery in 8 minutes</strong>
+        <span>Home, Saurabh Market Road</span>
+      </div>
+
+      <label class="search-box" for="searchInput">
+        <span>Search</span>
+        <input id="searchInput" type="search" placeholder='Search "milk", "bread", "chips"' />
+      </label>
+
+      <div class="header-actions">
+        <div class="status-pill" id="apiStatus">
+          <span></span>
+          Checking
+        </div>
+        <a class="cart-link" href="#cartPanel">My Cart</a>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="hero-strip">
+        <div class="hero-copy">
+          <p>Fresh drops every morning</p>
+          <h1>Groceries delivered before your kettle boils.</h1>
+          <span>Daily essentials, snacks, drinks, and home care in one fast cart.</span>
+        </div>
+        <img
+          src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80"
+          alt="Fresh grocery basket"
+        />
+      </section>
+
+      <section class="category-section" aria-label="Shop categories">
+        <div class="section-bar">
+          <h2>Shop by category</h2>
+          <button id="refreshButton" class="text-button" type="button">Refresh</button>
+        </div>
+        <div id="categoryRail" class="category-rail"></div>
+      </section>
+
+      <section class="content-grid">
+        <div class="catalog">
+          <div class="section-bar">
+            <div>
+              <h2>Fresh picks for you</h2>
+              <p id="productCount">Loading catalog...</p>
+            </div>
+          </div>
+          <div id="productGrid" class="product-grid" aria-live="polite"></div>
+        </div>
+
+        <aside class="side-panel">
+          <section class="panel-section">
+            <div class="section-bar compact">
+              <h2>Customer</h2>
+            </div>
+            <form id="userForm" class="stacked-form">
+              <input name="name" placeholder="Name" required />
+              <input name="email" type="email" placeholder="Email" required />
+              <input name="password" type="password" minlength="6" placeholder="Password" required />
+              <button type="submit">Create Customer</button>
+            </form>
+            <label class="select-label" for="userSelect">Shopping as</label>
+            <select id="userSelect"></select>
+          </section>
+
+          <section class="panel-section cart-panel" id="cartPanel">
+            <div class="section-bar compact">
+              <h2>My Cart</h2>
+              <button id="clearCartButton" class="text-button danger" type="button">Clear</button>
+            </div>
+            <div id="cartList" class="cart-list"></div>
+            <div class="cart-total">
+              <span>Total</span>
+              <strong id="cartTotal">$0.00</strong>
+            </div>
+            <button id="checkoutButton" class="checkout-button" type="button">Checkout</button>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-bar compact">
+              <h2>Store tools</h2>
+            </div>
+            <form id="productForm" class="stacked-form">
+              <input name="name" placeholder="Product name" required />
+              <div class="split-row">
+                <input name="price" type="number" min="0" step="0.01" placeholder="Price" required />
+                <input name="stock" type="number" min="0" step="1" placeholder="Stock" required />
+              </div>
+              <input name="category" placeholder="Category" />
+              <button type="submit">Add Product</button>
+            </form>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-bar compact">
+              <h2>Recent Orders</h2>
+            </div>
+            <div id="ordersList" class="orders-list"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="Quick actions">
+      <a href="/">Home</a>
+      <a href="#productGrid">Search</a>
+      <a href="#cartPanel">Cart</a>
+    </nav>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
