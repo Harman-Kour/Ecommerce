@@ -47,20 +47,42 @@ const elements = {
 };
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
-    ...options
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || 'Request failed');
+  try {
+    const response = await fetch(path, {
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+
+    clearTimeout(timeoutId);
+
+    const payload = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      const errorMessage = payload.message || payload.error || `Request failed (${response.status})`;
+      throw new Error(errorMessage);
+    }
+
+    return payload.data ?? payload;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - server is not responding');
+    }
+    
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Network error - check your connection');
+    }
+    
+    throw error;
   }
-
-  return payload.data ?? payload;
 }
 
 async function checkHealth() {
@@ -75,34 +97,45 @@ async function checkHealth() {
 }
 
 async function loadAll() {
-  await checkHealth();
-  const [users, products, orders] = await Promise.all([
-    api('/api/users'),
-    api('/api/products'),
-    api('/api/orders')
-  ]);
+  try {
+    await checkHealth();
+    const [users, products, orders] = await Promise.all([
+      api('/api/users'),
+      api('/api/products'),
+      api('/api/orders')
+    ]);
 
-  state.users = users;
-  state.products = products;
-  state.orders = orders;
-  state.activeUserId = state.activeUserId || users[0]?.id || null;
+    state.users = users || [];
+    state.products = products || [];
+    state.orders = orders || [];
+    state.activeUserId = state.activeUserId || users?.[0]?.id || null;
 
-  renderUsers();
-  renderCategories();
-  renderProducts();
-  renderOrders();
-  await loadCart();
+    renderUsers();
+    renderCategories();
+    renderProducts();
+    renderOrders();
+    await loadCart();
+  } catch (error) {
+    toast('Failed to load data: ' + error.message);
+    throw error;
+  }
 }
 
 async function loadCart() {
-  if (!state.activeUserId) {
+  try {
+    if (!state.activeUserId) {
+      state.cart = { items: [], total: 0 };
+      renderCart();
+      return;
+    }
+
+    state.cart = await api(`/api/cart/${state.activeUserId}`);
+    renderCart();
+  } catch (error) {
+    console.error('Failed to load cart:', error);
     state.cart = { items: [], total: 0 };
     renderCart();
-    return;
   }
-
-  state.cart = await api(`/api/cart/${state.activeUserId}`);
-  renderCart();
 }
 
 function renderUsers() {
@@ -229,13 +262,19 @@ function renderOrders() {
 async function createUser(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
+  
+  // Frontend validation
+  const name = form.get('name').trim();
+  const email = form.get('email').trim();
+  const password = form.get('password');
+
+  if (!name || name.length < 2) throw new Error('Name must be at least 2 characters');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email');
+  if (!password || password.length < 8) throw new Error('Password must be at least 8 characters');
+
   const user = await api('/api/users', {
     method: 'POST',
-    body: JSON.stringify({
-      name: form.get('name').trim(),
-      email: form.get('email').trim(),
-      password: form.get('password')
-    })
+    body: JSON.stringify({ name, email, password })
   });
 
   state.users.unshift(user);
@@ -250,14 +289,26 @@ async function createUser(event) {
 async function createProduct(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
+  
+  // Frontend validation
+  const name = form.get('name').trim();
+  const price = Number(form.get('price'));
+  const stock = Number(form.get('stock'));
+  const category = form.get('category').trim() || 'General';
+
+  if (!name || name.length < 2) throw new Error('Product name must be at least 2 characters');
+  if (!price || price <= 0) throw new Error('Price must be greater than 0');
+  if (!Number.isInteger(stock) || stock < 0) throw new Error('Stock must be a non-negative integer');
+  if (!category) throw new Error('Category is required');
+
   const product = await api('/api/products', {
     method: 'POST',
     body: JSON.stringify({
-      name: form.get('name').trim(),
+      name,
       description: 'Freshly added store item',
-      price: Number(form.get('price')),
-      stock: Number(form.get('stock')),
-      category: form.get('category').trim() || 'General'
+      price,
+      stock,
+      category
     })
   });
 
@@ -380,12 +431,29 @@ function bindEvents() {
   });
 }
 
+let isLoading = false;
+
 function handle(action) {
   return async event => {
+    if (isLoading) {
+      toast('Please wait, processing your request...');
+      return;
+    }
+
     try {
+      isLoading = true;
+      const button = event.target.closest('button');
+      if (button) button.disabled = true;
+
       await action(event);
     } catch (error) {
-      toast(error.message);
+      console.error('Error:', error);
+      const message = error.message || 'Something went wrong. Please try again.';
+      toast(message);
+    } finally {
+      isLoading = false;
+      const button = event.target.closest('button');
+      if (button) button.disabled = false;
     }
   };
 }

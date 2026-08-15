@@ -1,306 +1,342 @@
-# 🛒 E-Commerce Platform
+# QuickBasket
 
-> A production-ready **E-Commerce REST API** built with **Node.js**, **Express**, and **SQLite**, following **Clean Architecture** and **Single Responsibility Principle (SRP)**.
+QuickBasket is a full-stack grocery storefront using a clean-architecture Node.js backend and a lightweight static frontend served from the `public/` directory.
 
----
-
-## 📋 Table of Contents
-
-- [Architecture Overview](#-architecture-overview)
-- [Project Structure](#-project-structure)
-- [Tech Stack](#-tech-stack)
-- [Getting Started](#-getting-started)
-- [API Documentation](#-api-documentation)
-- [Database Schema](#-database-schema)
-- [Architecture Layers](#-architecture-layers)
-- [Design Principles](#-design-principles)
-- [Testing](#-testing)
-- [Extending the Project](#-extending-the-project)
+The app includes:
+- a REST API for users, products, cart, and orders
+- SQLite persistence
+- a browser UI for creating customers, adding products, managing cart items, and checking out
+- backend validation and stock checks before creating orders
 
 ---
 
-## 🏗️ Architecture Overview
+## Project overview
 
-This project follows **Clean Architecture** (a.k.a. Onion Architecture / Hexagonal Architecture) with strict layer separation. The core business logic is completely independent of frameworks, databases, and UI.
+### Frontend
+The browser app is served directly from `public/index.html` and uses `public/app.js` to:
+- call `/health` to check backend uptime
+- load users, products, and order history from the API
+- create a customer and select the active user
+- add products to the cart
+- clear the cart
+- create an order and refresh product stock
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                        │
-│         Routes → Controllers → Middleware → Validators      │
-├─────────────────────────────────────────────────────────────┤
-│                   APPLICATION LAYER                          │
-│              Use Cases (Interactors) → DTOs → Ports         │
-├─────────────────────────────────────────────────────────────┤
-│                     DOMAIN LAYER                             │
-│              Entities → Domain Services → Repository Ports    │
-├─────────────────────────────────────────────────────────────┤
-│                  INFRASTRUCTURE LAYER                        │
-│    SQL Repositories → SQLite DB → Bcrypt → Express Server   │
-└─────────────────────────────────────────────────────────────┘
-```
+The storefront UI is a grocery-style landing page featuring a search bar, category chips, product cards, a customer panel, cart summary, and recent orders.
 
-**Dependency Rule:** Dependencies always point **inward**. The Domain layer knows nothing about Express, SQLite, or bcrypt.
+### Backend
+The backend is an Express server defined in `src/app.js` and structured with clean architecture layers:
+- `src/domain/`: entities and domain rules
+- `src/application/`: use cases and DTOs
+- `src/infrastructure/`: SQLite repositories, HTTP controllers, routes, middleware, and bcrypt service
+- `src/config/container.js`: dependency injection setup
 
 ---
 
-## 📁 Project Structure
+## Tech stack
 
-```
-ecommerce-clean/
+- Node.js 20+
+- Express.js
+- SQLite with `sqlite` and `sqlite3`
+- bcrypt for password hashing
+- dotenv for environment configuration
+- static HTML/CSS/JS frontend in `public/`
+
+---
+
+## Project structure
+
+```text
+.
+├── public/
+│   ├── app.js
+│   ├── index.html
+│   └── styles.css
 ├── src/
-│   ├── domain/                          # 💎 Core Business Logic (Framework-free)
-│   │   ├── entities/
-│   │   │   ├── User.js                  # User entity with role logic
-│   │   │   ├── Product.js               # Product with stock management
-│   │   │   ├── Order.js                 # Order with items & status workflow
-│   │   │   └── Cart.js                  # Shopping cart with items
-│   │   ├── repositories/
-│   │   │   ├── IUserRepository.js       # Repository contract (Port)
-│   │   │   ├── IProductRepository.js
-│   │   │   ├── IOrderRepository.js
-│   │   │   └── ICartRepository.js
-│   │   └── services/
-│   │       └── OrderCalculator.js       # Pure business logic service
-│   │
-│   ├── application/                     # 🎯 Use Cases & Application Logic
+│   ├── app.js
+│   ├── application/
 │   │   ├── dto/
-│   │   │   ├── CreateUserDTO.js         # Data Transfer Objects
-│   │   │   ├── CreateProductDTO.js
-│   │   │   ├── CreateOrderDTO.js
-│   │   │   └── AddToCartDTO.js
-│   │   ├── usecases/
-│   │   │   ├── user/
-│   │   │   │   ├── RegisterUserUseCase.js
-│   │   │   │   ├── GetUserUseCase.js
-│   │   │   │   └── ListUsersUseCase.js
-│   │   │   ├── product/
-│   │   │   │   ├── CreateProductUseCase.js
-│   │   │   │   ├── GetProductUseCase.js
-│   │   │   │   ├── ListProductsUseCase.js
-│   │   │   │   ├── UpdateProductUseCase.js
-│   │   │   │   └── DeleteProductUseCase.js
-│   │   │   ├── order/
-│   │   │   │   ├── CreateOrderUseCase.js
-│   │   │   │   ├── GetOrderUseCase.js
-│   │   │   │   └── ListOrdersUseCase.js
-│   │   │   └── cart/
-│   │   │       ├── AddToCartUseCase.js
-│   │   │       ├── GetCartUseCase.js
-│   │   │       └── ClearCartUseCase.js
-│   │   └── ports/
-│   │       └── IPasswordHasher.js       # External service contract
-│   │
-│   ├── infrastructure/                  # 🔌 Frameworks & External Tools
-│   │   ├── database/
-│   │   │   ├── connection.js            # SQLite connection singleton
-│   │   │   ├── schema.sql               # Database schema
-│   │   │   └── migrations.js            # Migration runner
+│   │   └── usecases/
+│   ├── config/
+│   │   └── container.js
+│   ├── domain/
+│   │   ├── entities/
 │   │   ├── repositories/
-│   │   │   ├── SqlUserRepository.js     # SQL implementation of IUserRepository
-│   │   │   ├── SqlProductRepository.js
-│   │   │   ├── SqlOrderRepository.js
-│   │   │   └── SqlCartRepository.js
-│   │   ├── web/
-│   │   │   ├── routes/
-│   │   │   │   ├── userRoutes.js
-│   │   │   │   ├── productRoutes.js
-│   │   │   │   ├── orderRoutes.js
-│   │   │   │   └── cartRoutes.js
-│   │   │   ├── controllers/
-│   │   │   │   ├── UserController.js
-│   │   │   │   ├── ProductController.js
-│   │   │   │   ├── OrderController.js
-│   │   │   │   └── CartController.js
-│   │   │   ├── middleware/
-│   │   │   │   ├── errorHandler.js
-│   │   │   │   ├── requestValidator.js
-│   │   │   │   └── authMiddleware.js
-│   │   │   └── validators/
-│   │   │       ├── userValidator.js
-│   │   │       ├── productValidator.js
-│   │   │       └── orderValidator.js
 │   │   └── services/
-│   │       └── BcryptPasswordHasher.js  # IPasswordHasher implementation
-│   │
-│   └── config/
-│       └── container.js                 # 🏭 Dependency Injection Container
-│
-├── src/app.js                           # 🚀 Application Entry Point
+│   ├── infrastructure/
+│   │   ├── database/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   └── web/
+│   └── ...
+├── instruction.md
 ├── package.json
-├── .env
-└── README.md                            # 📖 You are here!
+├── readme.MD
+└── ecommerce.db
 ```
 
 ---
 
-## 🛠️ Tech Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Runtime** | Node.js | JavaScript runtime |
-| **Web Framework** | Express.js | HTTP server & routing |
-| **Database** | SQLite | Lightweight SQL database |
-| **ORM/DB Driver** | `sqlite` + `sqlite3` | SQLite async wrapper |
-| **Password Hashing** | bcrypt | Secure password storage |
-| **Environment** | dotenv | Configuration management |
-| **Dev Tools** | nodemon, jest | Development & testing |
-
----
-
-## 🚀 Getting Started
+## Local setup
 
 ### Prerequisites
 
-- Node.js `>= 18.x`
-- npm or yarn
+- Node.js 18 or newer
+- npm
 
-### Installation
+### Install dependencies
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/yourusername/ecommerce-clean.git
-cd ecommerce-clean
-
-# 2. Install dependencies
+cd /path/to/ecommerce
 npm install
-
-# 3. Create environment file
-cp .env.example .env
-
-# 4. Start the server
-npm start
-
-# Or with auto-reload for development
-npm run dev
 ```
 
-### Environment Variables
+### Environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file if needed:
 
 ```env
 PORT=3000
 NODE_ENV=development
 ```
 
-### Verify Installation
+### Start the app
+
+```bash
+npm start
+```
+
+For development watching:
+
+```bash
+npm run dev
+```
+
+Open the frontend in the browser:
+
+```text
+http://localhost:3000
+```
+
+### Health check
 
 ```bash
 curl http://localhost:3000/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-08-15T00:00:00.000Z"
+  "timestamp": "2026-08-15T09:00:57.246Z"
 }
 ```
 
+> Note: if port `3000` is already in use, set `PORT` to another free port, for example `PORT=3100`.
+
 ---
 
-## 📡 API Documentation
+## API contract
 
-### Base URL
-```
+Base URL:
+
+```text
 http://localhost:3000/api
 ```
 
----
+All API responses are wrapped in a success envelope like:
 
-### 👤 Users
-
-#### Register a new user
-```http
-POST /api/users
-Content-Type: application/json
-
+```json
 {
-  "email": "john@example.com",
-  "password": "securePassword123",
-  "name": "John Doe"
+  "success": true,
+  "data": { ... }
 }
 ```
 
-**Response:**
+Errors are returned as:
+
+```json
+{
+  "success": false,
+  "error": "Message describing the issue"
+}
+```
+
+---
+
+## Users API
+
+### Create user
+
+```http
+POST /api/users
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "name": "Alice",
+  "email": "alice@example.com",
+  "password": "secret123"
+}
+```
+
+Validation:
+- `name` is required
+- `email` is required and must be valid
+- `password` is required and minimum length is 6
+
+Response:
+
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
-    "email": "john@example.com",
-    "name": "John Doe",
+    "id": 5,
+    "email": "alice@example.com",
+    "passwordHash": "$2b$10$...",
+    "name": "Alice",
     "role": "customer",
-    "createdAt": "2026-08-15T00:00:00.000Z"
+    "createdAt": "2026-08-15T09:00:57.427Z"
   }
 }
 ```
 
-#### Get user by ID
-```http
-GET /api/users/1
-```
+Important: the current implementation returns `passwordHash` in user data. This is existing behavior and should be treated as internal data, not safe client output.
 
-#### List all users
+### List users
+
 ```http
 GET /api/users
 ```
 
+### Get user by id
+
+```http
+GET /api/users/:id
+```
+
+Example:
+
+```bash
+curl http://localhost:3000/api/users/1
+```
+
 ---
 
-### 📦 Products
+## Products API
 
-#### Create a product
+### Create product
+
 ```http
 POST /api/products
 Content-Type: application/json
+```
 
+Body:
+
+```json
 {
-  "name": "MacBook Pro M3",
-  "description": "14-inch Apple Silicon laptop",
-  "price": 1999.99,
-  "stock": 50,
-  "category": "Electronics"
+  "name": "Milk",
+  "description": "Fresh dairy",
+  "price": 3.5,
+  "stock": 10,
+  "category": "dairy"
 }
 ```
 
-#### Get product by ID
-```http
-GET /api/products/1
+Validation:
+- `name` is required
+- `price` is required, numeric, and greater than or equal to 0
+- `stock` is required, numeric, and greater than or equal to 0
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 7,
+    "name": "Milk",
+    "description": "Fresh dairy",
+    "price": 3.5,
+    "stock": 10,
+    "category": "dairy",
+    "createdAt": "2026-08-15T09:00:57.472Z",
+    "updatedAt": "2026-08-15T09:00:57.472Z"
+  }
+}
 ```
 
-#### List all products (with optional filters)
+### List products
+
 ```http
 GET /api/products
-GET /api/products?category=Electronics
-GET /api/products?minPrice=100&maxPrice=500
 ```
 
-#### Update a product
-```http
-PUT /api/products/1
-Content-Type: application/json
+Optional filters supported by the repository implementation:
 
+```http
+GET /api/products?category=dairy
+GET /api/products?minPrice=10&maxPrice=30
+```
+
+### Get product by id
+
+```http
+GET /api/products/:id
+```
+
+### Update product
+
+```http
+PUT /api/products/:id
+Content-Type: application/json
+```
+
+Example:
+
+```json
 {
-  "price": 1799.99,
-  "stock": 45
+  "price": 4.25,
+  "stock": 15,
+  "category": "dairy"
 }
 ```
 
-#### Delete a product
+### Delete product
+
 ```http
-DELETE /api/products/1
+DELETE /api/products/:id
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true
+  }
+}
 ```
 
 ---
 
-### 🛒 Cart
+## Cart API
 
-#### Add item to cart
+### Add item to cart
+
 ```http
 POST /api/cart/add
 Content-Type: application/json
+```
 
+Body:
+
+```json
 {
   "userId": 1,
   "productId": 1,
@@ -308,12 +344,40 @@ Content-Type: application/json
 }
 ```
 
-#### Get user cart
-```http
-GET /api/cart/1
+Validation:
+- `userId` required as number
+- `productId` required as number
+- `quantity` required as number and minimum 1
+
+Behavior:
+- product existence is checked
+- stock is checked against requested quantity
+- if the cart does not exist for the user, it is created
+- repeated adds increase quantity on the same product
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "userId": 1,
+    "items": [
+      { "productId": 1, "quantity": 2 }
+    ]
+  }
+}
 ```
 
-**Response:**
+### Get cart by user
+
+```http
+GET /api/cart/:userId
+```
+
+Response shape:
+
 ```json
 {
   "success": true,
@@ -324,113 +388,97 @@ GET /api/cart/1
         "quantity": 2,
         "product": {
           "id": 1,
-          "name": "MacBook Pro M3",
-          "price": 1999.99
+          "name": "Test Hoodie",
+          "price": 49.99
         }
       }
     ],
-    "total": 3999.98
+    "total": 99.98
   }
 }
 ```
 
-#### Clear cart
+### Clear cart
+
 ```http
-DELETE /api/cart/1
+DELETE /api/cart/:userId
 ```
+
+This removes all cart items for that user.
 
 ---
 
-### 📋 Orders
+## Orders API
 
-#### Create an order
+### Create order
+
 ```http
 POST /api/orders
 Content-Type: application/json
+```
 
+Body:
+
+```json
 {
   "userId": 1,
   "items": [
-    { "productId": 1, "quantity": 1 },
-    { "productId": 2, "quantity": 3 }
+    { "productId": 1, "quantity": 1 }
   ]
 }
 ```
 
-**Response:**
+Behavior:
+- validates every requested product exists
+- validates product stock against each quantity
+- reduces product stock as items are ordered
+- creates an order record with `pending` status
+- clears that user's cart after the order is saved
+
+Example response:
+
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
+    "id": 6,
     "userId": 1,
-    "status": "pending",
-    "totalAmount": 2599.97,
     "items": [
-      { "productId": 1, "quantity": 1, "unitPrice": 1999.99 },
-      { "productId": 2, "quantity": 3, "unitPrice": 199.99 }
+      { "productId": 1, "quantity": 1, "unitPrice": 49.99 }
     ],
-    "createdAt": "2026-08-15T00:00:00.000Z"
+    "status": "pending",
+    "totalAmount": 49.99,
+    "createdAt": "2026-08-15T09:00:57.565Z"
   }
 }
 ```
 
-> **Note:** Creating an order automatically validates stock, decreases product inventory, and clears the user's cart.
+### List orders
 
-#### Get order by ID
 ```http
-GET /api/orders/1
+GET /api/orders
 ```
 
-#### List orders
+Optional filter:
+
 ```http
-GET /api/orders              # All orders
-GET /api/orders?userId=1     # Orders for specific user
+GET /api/orders?userId=1
+```
+
+### Get order by id
+
+```http
+GET /api/orders/:id
 ```
 
 ---
 
-## 🗄️ Database Schema
+## Database schema
 
-### Entity Relationship Diagram
-
-```
-┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│    users    │       │   orders    │       │  products   │
-├─────────────┤       ├─────────────┤       ├─────────────┤
-│ id (PK)     │◄──────┤ id (PK)     │       │ id (PK)     │
-│ email (UQ)  │       │ user_id(FK) │       │ name        │
-│ password_hash│      │ status      │       │ price       │
-│ name        │       │ total_amount│       │ stock       │
-│ role        │       │ created_at  │       │ category    │
-│ created_at  │       └──────┬──────┘       └─────────────┘
-└─────────────┘              │
-                             │
-                      ┌──────┴──────┐
-                      │ order_items │
-                      ├─────────────┤
-                      │ id (PK)     │
-                      │ order_id(FK)│
-                      │ product_id  │
-                      │ quantity    │
-                      │ unit_price  │
-                      └─────────────┘
-
-┌─────────────┐       ┌─────────────┐
-│    carts    │       │ cart_items  │
-├─────────────┤       ├─────────────┤
-│ id (PK)     │◄──────┤ id (PK)     │
-│ user_id(FK) │       │ cart_id(FK) │
-└─────────────┘       │ product_id  │
-                      │ quantity    │
-                      └─────────────┘
-```
-
-### SQL Schema
+The app uses SQLite and creates these tables on startup via `src/infrastructure/database/schema.sql`:
 
 ```sql
--- Users Table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -439,8 +487,7 @@ CREATE TABLE users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Products Table
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT,
@@ -451,8 +498,7 @@ CREATE TABLE products (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Orders Table
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   status TEXT DEFAULT 'pending',
@@ -461,8 +507,7 @@ CREATE TABLE orders (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Order Items Table
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id INTEGER NOT NULL,
   product_id INTEGER NOT NULL,
@@ -472,15 +517,13 @@ CREATE TABLE order_items (
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Carts Table
-CREATE TABLE carts (
+CREATE TABLE IF NOT EXISTS carts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER UNIQUE NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Cart Items Table
-CREATE TABLE cart_items (
+CREATE TABLE IF NOT EXISTS cart_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cart_id INTEGER NOT NULL,
   product_id INTEGER NOT NULL,
@@ -493,11 +536,72 @@ CREATE TABLE cart_items (
 
 ---
 
-## 🏛️ Architecture Layers
+## Frontend behavior from the browser
 
-### 1. Domain Layer (`src/domain/`)
+The UI in `public/app.js` loads data in this order:
 
-The **heart** of the application. Contains pure business logic with **zero external dependencies**.
+1. `GET /health`
+2. `GET /api/users`
+3. `GET /api/products`
+4. `GET /api/orders`
+5. `GET /api/cart/:userId`
+
+When a user adds an item to cart, the frontend posts to:
+
+```http
+POST /api/cart/add
+```
+
+When the customer clicks checkout, the frontend posts:
+
+```http
+POST /api/orders
+```
+
+The frontend then refreshes the product list and cart state so the inventory and totals stay in sync.
+
+---
+
+## Tested API matrix
+
+I validated the app with live HTTP requests against the running server.
+
+### Verified successful routes
+
+```bash
+curl http://localhost:3000/health
+curl -X POST http://localhost:3000/api/users -H 'Content-Type: application/json' -d '{"name":"Alice","email":"alice@example.com","password":"secret123"}'
+curl http://localhost:3000/api/users
+curl -X POST http://localhost:3000/api/products -H 'Content-Type: application/json' -d '{"name":"Milk","description":"Fresh dairy","price":3.5,"stock":10,"category":"dairy"}'
+curl http://localhost:3000/api/products
+curl -X POST http://localhost:3000/api/cart/add -H 'Content-Type: application/json' -d '{"userId":1,"productId":1,"quantity":2}'
+curl http://localhost:3000/api/cart/1
+curl -X POST http://localhost:3000/api/orders -H 'Content-Type: application/json' -d '{"userId":1,"items":[{"productId":1,"quantity":1}]}'
+curl http://localhost:3000/api/orders
+```
+
+### Verified validation/error behavior
+
+- duplicate user registration returns `409` with `Resource already exists`
+- invalid payloads fail with `400` and a validation message
+- insufficient product stock returns `500` with `Insufficient stock` in the current app flow
+- product checkout decreases stock and clears the cart
+
+---
+
+## Known caveats
+
+- The app currently returns `passwordHash` in user JSON responses.
+- Product validation is handled mostly in middleware and repository/business logic; not all cases are normalized before the response is sent.
+- If `PORT=3000` is busy, choose another port via the environment variable.
+- The native `bcrypt` and `sqlite3` modules may need a rebuild in some Linux containers or environments.
+
+---
+
+## Summary
+
+This project is a working full-stack grocery storefront with a cleanly layered backend and a static frontend. The frontend is fully wired to the API, and the route behavior above matches the live app that was tested during verification.
+
 
 | Component | Responsibility |
 |-----------|--------------|
