@@ -1,4 +1,4 @@
-#Snap Delivery
+#SnapDelivery
 
 Snap Delivery is a full-stack grocery storefront using a clean-architecture Node.js backend and a lightweight static frontend served from the `public/` directory.
 
